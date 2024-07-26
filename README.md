@@ -21,4 +21,4 @@ The Hand Sign Detection Model is a deep learning-based system that utilizes Conv
 ### Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/RahulSinghKathayat/hand-sign-detection-model
+   git clone https://github.com/RahulSinghKathayat/hand-sign-detection-model.git
