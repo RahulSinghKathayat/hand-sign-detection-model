@@ -1,0 +1,147 @@
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+
+import matplotlib.pyplot as plt
+dataset = tf.keras.preprocessing.image_dataset_from_directory(r"C:/Users/NITRO V/OneDrive/Documents/VSCodes/Hand Signs Detection/hand signs/DATASET", shuffle = True, image_size = (64,64), batch_size = 25)
+
+class_names = dataset.class_names
+class_names
+len(dataset)
+for image_batch, label_batch in dataset.take(1):
+    print(image_batch.shape)
+    print(label_batch.numpy())
+plt.figure(figsize=(9,13))
+for image_batch, label_batch in dataset.take(1):
+    for r in range(10):
+        plot = plt.subplot(4,3,r+1)
+        plt.imshow(image_batch[r].numpy().astype("uint8"))
+        plt.title(class_names[label_batch[r]])
+
+len(dataset)
+train_ds = .8
+len(dataset)*train_ds
+train_ds = dataset.take(28)
+len(train_ds)
+rem_ds = dataset.skip(28)
+len(rem_ds)
+val_ds = rem_ds.take(3)
+len(val_ds)
+test_ds = rem_ds.skip(3)
+len(test_ds)
+def get_dataset_partitions_tf(ds, train_split = .8, val_split = .1, test_split = .1, shuffle = True, shuffle_size = 1000):
+    ds_size  = len(dataset)
+    if shuffle:
+        ds = ds.shuffle(shuffle_size, seed = 10)
+        train_size = int(train_split*ds_size)
+        val_size = int(val_split*ds_size)
+
+        train_ds  = ds.take(train_size)
+        val_ds = ds.skip(train_size).take(val_size)
+        test_ds = ds.skip(train_size + val_size)
+        return train_ds,val_ds, test_ds
+train_ds, test_ds, val_ds  = get_dataset_partitions_tf(dataset)
+train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size = tf.data.AUTOTUNE)
+test_ds = test_ds.cache().prefetch(buffer_size = tf.data.AUTOTUNE)
+val_ds = val_ds.cache().prefetch(buffer_size = tf.data.AUTOTUNE)
+from tensorflow.keras import layers, models
+resize_rescale = tf.keras.Sequential([
+  layers.Resizing(64,64),
+  layers.Rescaling(1.0/255)
+])
+data_augmentation = tf.keras.Sequential([
+    layers.RandomFlip("horizontal_and_vertical"),
+    layers.RandomRotation(0.2)
+])
+from keras.layers import Dense, Conv2D, Flatten, MaxPooling2D
+from keras.models import Sequential
+
+input_shape = (64,64,3)
+n_classes = 36
+
+resize_rescale
+data_augmentation
+
+model = models.Sequential([
+
+    layers.Input(shape = input_shape),
+
+    layers.Conv2D(32, (3,3),padding='same', activation='relu'),
+    layers.MaxPooling2D(pool_size=(2,2)),
+    layers.Conv2D(64,(3,3),padding='same',activation='relu'),
+    layers.MaxPooling2D(pool_size=(2,2)),
+    layers.Conv2D(64, (3,3),padding='same', activation='relu'),
+    layers.MaxPooling2D(pool_size=(2,2)),
+ 
+
+    layers.Flatten(),
+    layers.Dense(128,activation='relu'),
+    layers.Dense(36,activation='softmax')
+
+
+
+])
+
+model.summary()
+from keras.callbacks import EarlyStopping
+model.compile(optimizer='adam',
+             loss = 'sparse_categorical_crossentropy',
+              metrics = ['accuracy'] )
+history = model.fit(train_ds,epochs=50, verbose = 1, validation_data = val_ds)
+score = model.evaluate(test_ds)
+score
+acc = history.history['accuracy']
+val_acc = history.history['val_accuracy']
+
+loss = history.history['loss']
+val_loss  = history.history['val_loss']
+plt.figure(figsize = (8,6))
+plt.subplot(1,2,1)
+plt.plot(range(50), acc, label = "Training accurcay")
+plt.plot(range(50), val_acc, label = "validation accurcay")
+plt.legend(loc='lower right')
+plt.title("training and validation accuracy")
+
+
+
+plt.subplot(1,2,2)
+plt.plot(range(50), loss, label = "Training loss")
+plt.plot(range(50), val_loss, label = "validation loss")
+plt.legend(loc='lower right')
+plt.title("training and validation loss")
+for image_batch, lable_batch in test_ds.take(1):
+    first_image = image_batch[0].numpy().astype('uint8')
+    plt.axis('off')
+    first_lable = lable_batch[0].numpy()
+
+    print("first image to predict")
+    plt.imshow(first_image)
+    print("actual:  ", class_names[first_lable])
+
+    batch_prediction = model.predict(image_batch)
+    print("predicted lable: ", class_names[np.argmax(batch_prediction[0])])
+def predict (model, img):
+    img_array = tf.keras.preprocessing.image.img_to_array(images[i].numpy())
+    img_array = tf.expand_dims(img_array, 0) #create batch
+    
+    
+    predictions = model.predict(img_array)
+
+    predicted_class =class_names[np.argmax(predictions[0])]
+    confidence = round(100 * (np.max(predictions[0])), 2)
+    return predicted_class, confidence
+plt.figure(figsize=(15,15))
+for images, lables in test_ds.take(1):
+    for i in range(9):
+        ax = plt.subplot(3,3,i+1)
+        plt.imshow(images[i].numpy().astype("uint8")) 
+        predicted_class, confidence = predict(model, images[i].numpy())
+        actual_class = class_names[lables[i]]
+        plt.title(f"Actual: , {actual_class}, \n predicted: {predicted_class}, \nConfidece: {confidence}")
+        plt.axis('off')
+import os
+directory = "C:/Users/NITRO V/OneDrive\Documents/VSCodes/Hand Signs Detection"
+base_name = 'hand_sign_model'
+model_version = max([int(i.split('_')[-1].split('.')[0]) for i in os.listdir(directory) if i.startswith(base_name) if i.endswith('.keras')]+[0])+1
+model.save(f"{directory}/{base_name}_{model_version}.keras")
+print(f"Model saved as {base_name}_{model_version}.keras")
